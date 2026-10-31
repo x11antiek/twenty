@@ -1,0 +1,37 @@
+name: Deploy
+
+on:
+  push:
+    branches: [railway]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install deployment client
+        run: npm install --global @railway/cli@5.71.0 --silent
+
+      - name: Deploy application
+        env:
+          RAILWAY_HTTP_TIMEOUT: '300'
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVER_SERVICE_ID: ${{ secrets.RAILWAY_SERVER_SERVICE_ID }}
+          RAILWAY_WORKER_SERVICE_ID: ${{ secrets.RAILWAY_WORKER_SERVICE_ID }}
+        run: |
+          deployment_directory=$(mktemp -d)
+          git archive HEAD | tar -x -C "$deployment_directory"
+          cd "$deployment_directory"
+          python3 .github/scripts/deploy.py
